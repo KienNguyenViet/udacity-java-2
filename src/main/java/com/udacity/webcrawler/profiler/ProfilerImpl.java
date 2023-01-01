@@ -3,9 +3,12 @@ package com.udacity.webcrawler.profiler;
 import javax.inject.Inject;
 import java.io.IOException;
 import java.io.Writer;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.ZonedDateTime;
+import java.util.Arrays;
 import java.util.Objects;
 
 import static java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME;
@@ -33,7 +36,21 @@ final class ProfilerImpl implements Profiler {
     //       ProfilingMethodInterceptor and return a dynamic proxy from this method.
     //       See https://docs.oracle.com/javase/10/docs/api/java/lang/reflect/Proxy.html.
 
-    return delegate;
+    boolean flag = false;
+    for (Method m :
+            delegate.getClass().getInterfaces()[0].getMethods()) {
+      if (m.isAnnotationPresent(Profiled.class)) {
+        flag = true;
+        break;
+      }
+    }
+    if (!flag) {
+      throw new IllegalArgumentException();
+    }
+    ProfilingMethodInterceptor profilingMethodInterceptor = new ProfilingMethodInterceptor(clock, state, delegate);
+    return (T) Proxy.newProxyInstance(klass.getClassLoader(),
+            new Class<?>[]{klass},
+            profilingMethodInterceptor);
   }
 
   @Override
